@@ -18,7 +18,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Using parse_mode='Markdown' so the bold text renders correctly
     await update.message.reply_text(welcome_text, parse_mode='Markdown')
 
-async def main():
+def main():
     TOKEN = os.environ.get("TELEGRAM_TOKEN")
     
     if not TOKEN:
@@ -33,18 +33,8 @@ async def main():
     
     logger.info("--- CLICKMAGIC AI STARTING ---")
     
-    # Running the bot in an async context for Python 3.14 compatibility
-    async with application:
-        await application.initialize()
-        await application.start()
-        await application.updater.start_polling(drop_pending_updates=True)
-        
-        # Keep the background worker alive
-        while True:
-            await asyncio.sleep(3600)
+    # Run the bot - this is the correct way for production
+    application.run_polling(drop_pending_updates=True)
 
 if __name__ == '__main__':
-    try:
-        asyncio.run(main())
-    except (KeyboardInterrupt, SystemExit):
-        logger.info("Bot stopped.")
+    main()
