@@ -7,10 +7,9 @@ from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, fil
 
 # Setup Logging
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
-logger = logging.getLogger(name)
+logger = logging.getLogger(__name__)
 
-# Flask App for Render Health Check
-app = Flask(name)
+app = Flask(__name__)
 
 @app.route('/')
 def home():
@@ -18,32 +17,36 @@ def home():
 
 def run_flask():
     port = int(os.environ.get("PORT", 8080))
+    logger.info(f"Starting Flask on port {port}")
     app.run(host='0.0.0.0', port=port)
 
-# Telegram Bot Logic
 TOKEN = os.getenv("BOT_TOKEN")
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("🎨 ClickMagic AI is Online!\nSend me a photo and a title to start.")
+    logger.info("Start command received from user!")
+    await update.message.reply_text("✅ Bot is working! Send me a photo.")
 
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Got it! I'm working on your thumbnail... 🚀")
+async def handle_all(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    logger.info("Message received!")
+    await update.message.reply_text("I'm online and receiving your messages!")
 
 def main():
     if not TOKEN:
-        logger.error("BOT_TOKEN environment variable is missing!")
+        logger.error("CRITICAL ERROR: BOT_TOKEN is missing from Environment Variables!")
         return
 
-    # Start Flask in a background thread
+    # Start Flask to keep Render happy
     Thread(target=run_flask, daemon=True).start()
 
-    # Start Telegram Bot
+    # Start Bot
+    logger.info("Initializing Telegram Bot...")
     application = ApplicationBuilder().token(TOKEN).build()
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(MessageHandler(filters.ALL, handle_message))
     
-    logger.info("Bot is starting...")
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(MessageHandler(filters.ALL, handle_all))
+    
+    logger.info("Bot is now polling Telegram for messages...")
     application.run_polling()
 
-if name == 'main':
+if __name__ == '__main__':
     main()
