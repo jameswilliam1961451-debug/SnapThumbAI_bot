@@ -1,52 +1,50 @@
 import os
 import logging
-from flask import Flask
-from threading import Thread
+import asyncio
 from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
-# Setup Logging
-logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
+# Set up logging
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=logging.INFO
+)
 logger = logging.getLogger(__name__)
 
-app = Flask(__name__)
-
-@app.route('/')
-def home():
-    return "Bot is alive!", 200
-
-def run_flask():
-    port = int(os.environ.get("PORT", 8080))
-    logger.info(f"Starting Flask on port {port}")
-    app.run(host='0.0.0.0', port=port)
-
-TOKEN = os.getenv("BOT_TOKEN")
-
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    logger.info("Start command received from user!")
-    await update.message.reply_text("✅ Bot is working! Send me a photo.")
+    # Updated welcome message
+    welcome_text = "🎨 **ClickMagic AI is Online!**\nSend me a photo and a title to start"
+    
+    # Using parse_mode='Markdown' so the bold text renders correctly
+    await update.message.reply_text(welcome_text, parse_mode='Markdown')
 
-async def handle_all(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    logger.info("Message received!")
-    await update.message.reply_text("I'm online and receiving your messages!")
-
-def main():
+async def main():
+    TOKEN = os.environ.get("TELEGRAM_TOKEN")
+    
     if not TOKEN:
-        logger.error("CRITICAL ERROR: BOT_TOKEN is missing from Environment Variables!")
+        logger.error("No TELEGRAM_TOKEN found in Environment Variables!")
         return
 
-    # Start Flask to keep Render happy
-    Thread(target=run_flask, daemon=True).start()
-
-    # Start Bot
-    logger.info("Initializing Telegram Bot...")
+    # Build the application
     application = ApplicationBuilder().token(TOKEN).build()
     
+    # Add handler for the /start command
     application.add_handler(CommandHandler("start", start))
-    application.add_handler(MessageHandler(filters.ALL, handle_all))
     
-    logger.info("Bot is now polling Telegram for messages...")
-    application.run_polling()
+    logger.info("--- CLICKMAGIC AI STARTING ---")
+    
+    # Running the bot in an async context for Python 3.14 compatibility
+    async with application:
+        await application.initialize()
+        await application.start()
+        await application.updater.start_polling(drop_pending_updates=True)
+        
+        # Keep the background worker alive
+        while True:
+            await asyncio.sleep(3600)
 
 if __name__ == '__main__':
-    main()
+    try:
+        asyncio.run(main())
+    except (KeyboardInterrupt, SystemExit):
+        logger.info("Bot stopped.")
